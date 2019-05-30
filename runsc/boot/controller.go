@@ -101,6 +101,8 @@ const (
 	StartCPUProfile = "Profile.StartCPUProfile"
 	StopCPUProfile  = "Profile.StopCPUProfile"
 	HeapProfile     = "Profile.HeapProfile"
+	StartTrace      = "Profile.StartTrace"
+	StopTrace       = "Profile.StopTrace"
 )
 
 // ControlSocketAddr generates an abstract unix socket name for the given ID.
@@ -418,16 +420,12 @@ type WaitPIDArgs struct {
 
 	// CID is the container ID.
 	CID string
-
-	// ClearStatus determines whether the exit status of the process should
-	// be cleared when WaitPID returns.
-	ClearStatus bool
 }
 
 // WaitPID waits for the process with PID 'pid' in the sandbox.
 func (cm *containerManager) WaitPID(args *WaitPIDArgs, waitStatus *uint32) error {
 	log.Debugf("containerManager.Wait")
-	return cm.l.waitPID(kernel.ThreadID(args.PID), args.CID, args.ClearStatus, waitStatus)
+	return cm.l.waitPID(kernel.ThreadID(args.PID), args.CID, waitStatus)
 }
 
 // SignalDeliveryMode enumerates different signal delivery modes.

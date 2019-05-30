@@ -649,7 +649,7 @@ func (s *Sandbox) Wait(cid string) (syscall.WaitStatus, error) {
 
 // WaitPID waits for process 'pid' in the container's sandbox and returns its
 // WaitStatus.
-func (s *Sandbox) WaitPID(cid string, pid int32, clearStatus bool) (syscall.WaitStatus, error) {
+func (s *Sandbox) WaitPID(cid string, pid int32) (syscall.WaitStatus, error) {
 	log.Debugf("Waiting for PID %d in sandbox %q", pid, s.ID)
 	var ws syscall.WaitStatus
 	conn, err := s.sandboxConnect()
@@ -659,9 +659,8 @@ func (s *Sandbox) WaitPID(cid string, pid int32, clearStatus bool) (syscall.Wait
 	defer conn.Close()
 
 	args := &boot.WaitPIDArgs{
-		PID:         pid,
-		CID:         cid,
-		ClearStatus: clearStatus,
+		PID: pid,
+		CID: cid,
 	}
 	if err := conn.Call(boot.ContainerWaitPID, args, &ws); err != nil {
 		return ws, fmt.Errorf("waiting on PID %d in sandbox %q: %v", pid, s.ID, err)
@@ -879,6 +878,41 @@ func (s *Sandbox) StopCPUProfile() error {
 
 	if err := conn.Call(boot.StopCPUProfile, nil, nil); err != nil {
 		return fmt.Errorf("stopping sandbox %q CPU profile: %v", s.ID, err)
+	}
+	return nil
+}
+
+// StartTrace start trace  writing to the given file.
+func (s *Sandbox) StartTrace(f *os.File) error {
+	log.Debugf("Trace start %q", s.ID)
+	conn, err := s.sandboxConnect()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	opts := control.ProfileOpts{
+		FilePayload: urpc.FilePayload{
+			Files: []*os.File{f},
+		},
+	}
+	if err := conn.Call(boot.StartTrace, &opts, nil); err != nil {
+		return fmt.Errorf("starting sandbox %q trace: %v", s.ID, err)
+	}
+	return nil
+}
+
+// StopTrace stops a previously started trace..
+func (s *Sandbox) StopTrace() error {
+	log.Debugf("Trace stop %q", s.ID)
+	conn, err := s.sandboxConnect()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if err := conn.Call(boot.StopTrace, nil, nil); err != nil {
+		return fmt.Errorf("stopping sandbox %q trace: %v", s.ID, err)
 	}
 	return nil
 }
