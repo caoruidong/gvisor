@@ -15,6 +15,7 @@
 package host
 
 import (
+	"fmt"
 	"sync"
 	"syscall"
 
@@ -244,8 +245,15 @@ func (c *ConnectedEndpoint) SendNotify() {}
 // CloseSend implements transport.ConnectedEndpoint.CloseSend.
 func (c *ConnectedEndpoint) CloseSend() {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err := syscall.Shutdown(c.file.FD(), syscall.SHUT_WR); err != nil {
+		// A well-formed UDS shutdown can't fail. See
+		// net/unix/af_unix.c:unix_shutdown.
+		panic(fmt.Sprintf("failed write shutdown on host socket %+v: %v", c, err))
+	}
+
 	c.writeClosed = true
-	c.mu.Unlock()
 }
 
 // CloseNotify implements transport.ConnectedEndpoint.CloseNotify.
@@ -344,8 +352,15 @@ func (c *ConnectedEndpoint) RecvNotify() {}
 // CloseRecv implements transport.Receiver.CloseRecv.
 func (c *ConnectedEndpoint) CloseRecv() {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err := syscall.Shutdown(c.file.FD(), syscall.SHUT_RD); err != nil {
+		// A well-formed UDS shutdown can't fail. See
+		// net/unix/af_unix.c:unix_shutdown.
+		panic(fmt.Sprintf("failed read shutdown on host socket %+v: %v", c, err))
+	}
+
 	c.readClosed = true
-	c.mu.Unlock()
 }
 
 // Readable implements transport.Receiver.Readable.
